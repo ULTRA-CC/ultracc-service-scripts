@@ -3,8 +3,8 @@
 # Function to allow the user to select a port
 select_port() {
     while true; do
-        echo -e "$(tput setaf 6)$(tput bold)Free ports list available for custom installs:$(tput sgr0)"
-        printf '%0.s-' {1..46} && echo
+        echo -e "$(tput setaf 6)$(tput bold)Ports available for custom installs:$(tput sgr0)"
+        printf '%0.s-' {1..36} && echo
         /usr/bin/app-ports free | grep -v -E 'Unallocated ports for use|----' | sort -nr | awk '{
             printf "%s ", $1;
             if (NR % 5 == 0) print ""
@@ -33,7 +33,7 @@ select_port() {
         done
 
         echo
-        read -rp "$(tput setaf 4)$(tput bold)[INPUT REQUIRED] You have selected port $(tput sgr0)'${SELECTED_PORT}'$(tput setaf 4)$(tput bold). Type $(tput sgr0)$(tput bold)'confirm'$(tput setaf 4) to proceed: $(tput sgr0)" confirmation
+        read -rp "$(tput setaf 4)$(tput bold)[INPUT REQUIRED] You have selected port $(tput sgr0)'${SELECTED_PORT}'$(tput setaf 4)$(tput bold). Type $(tput sgr0)'confirm'$(tput setaf 4)$(tput bold) to proceed: $(tput sgr0)" confirmation
         if [ "${confirmation}" = "confirm" ]; then
             break
         else
