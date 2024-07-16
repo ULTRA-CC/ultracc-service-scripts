@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-APPNAME="dotNetArrs"
+APPNAME="Mediarr"
 VERSION="2024-07-16"
 
 BOLD=$(tput bold)
@@ -14,7 +14,7 @@ MAGENTA=$(tput setaf 5)
 GREEN=$(tput setaf 2)
 STOP_COLOR=$(tput sgr0)
 
-TMPDIR_LOCATION="$HOME/.tmp/dotnetarrs-$(date +%Y%m%d-%H%M%S)"
+TMPDIR_LOCATION="$HOME/.tmp/mediarr-$(date +%Y%m%d-%H%M%S)"
 
 
 print_welcome_message() {
