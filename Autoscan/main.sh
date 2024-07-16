@@ -246,7 +246,7 @@ uninstall_autoscan() {
     rm -f ${HOME}/bin/autoscan
 
     systemctl --user daemon-reload
-    if [[ -f ${HOME}/systemd/user/autoscan.service ]] || [[ -f ${HOME}/bin/notifiarr ]]; then
+    if [[ -f ${HOME}/systemd/user/autoscan.service ]] || [[ -f ${HOME}/bin/autoscan ]]; then
         echo -e "${RED}${BOLD}[ERROR] ${APPNAME} could not be fully uninstalled."
     else
         echo -e "${GREEN}${BOLD}[SUCCESS] ${APPNAME} has been uninstalled completely."
