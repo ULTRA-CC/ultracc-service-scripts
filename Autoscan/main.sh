@@ -173,6 +173,8 @@ install_autoscan() {
     wget -qO ${TMPDIR_LOCATION}/port-selector.sh https://scripts.usbx.me/main-v2/BaseFunctions/port-selector/main.sh
     source ${TMPDIR_LOCATION}/port-selector.sh
 
+    port="${SELECTED_PORT}"
+
     echo -e "\n${MAGENTA}${BOLD}[STAGE-2] Configure ${APPNAME}${STOP_COLOR}"
     mkdir -p ${CONFIG_DIR}
 
