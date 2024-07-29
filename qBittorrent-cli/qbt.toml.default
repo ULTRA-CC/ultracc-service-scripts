@@ -1,0 +1,8 @@
+[qbittorrent]
+addr       = "http://127.0.0.1:<WEBUI-PORT>" # qbittorrent webui-api hostname/ip
+login      = "<USERNAME>"                      # qbittorrent webui-api user
+password   = "<PASSWORD>"               # qbittorrent webui-api password
+
+[rules]
+enabled              = true   # enable or disable rules
+max_active_downloads = 2      # set max active downloads
