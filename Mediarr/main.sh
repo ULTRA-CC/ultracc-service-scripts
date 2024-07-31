@@ -15,7 +15,7 @@ GREEN=$(tput setaf 2)
 STOP_COLOR=$(tput sgr0)
 
 TMPDIR_LOCATION="$HOME/.tmp/mediarr-$(date +%Y%m%d-%H%M%S)"
-
+PYTHON_PATH=$(which python3)
 
 print_welcome_message() {
     term_width=$(tput cols)
@@ -139,9 +139,37 @@ get_bazarr_binaries() {
   unzip "${HOME}/.config/.temp/bazarr.zip" -d "${HOME}/.apps/bazarr2" >/dev/null 2>&1
   [ -d "${HOME}/.config/.temp/data" ] && mv "${HOME}/.config/.temp/data" "${HOME}/.apps/bazarr2/"
   rm -rf "${HOME}"/.config/.temp
-  "${pythonbinary}" -m pip install -q -r "${HOME}/.apps/bazarr2/requirements.txt"
 
-  if [[ -d "${HOME}/.config/${app}2" ]]; then
+  echo -e "\n\n${MAGENTA}${BOLD}[STAGE] Check Installed Python version${STOP_COLOR}"
+  PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 8))')
+  if [[ "$PY_VERSION_CHECK" == "True" ]]; then
+      echo -e "${YELLOW}${BOLD}[INFO] Installed Python version is 3.8 or larger.${STOP_COLOR}"
+  else
+      echo -e "${YELLOW}${BOLD}[[ WARNING ]] Python version is less than 3.8. Hence, running python install script for latest version ...."
+      sleep 5
+      mkdir -p ${TMPDIR_LOCATION}
+      wget -qO ${TMPDIR_LOCATION}/python-installer.sh https://scripts.usbx.me/util-v2/LanguageInstaller/Python-Installer/main.sh
+      source ${TMPDIR_LOCATION}/python-installer.sh
+      source ~/.profile
+
+      #recheck python version
+      PYTHON_PATH=$(which python3)
+      PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 8))')
+      if [[ "$PY_VERSION_CHECK" == "True" ]]; then
+          echo -e "\n${YELLOW}${BOLD}[INFO] Installed Python version is 3.8 or larger.${STOP_COLOR}"
+          echo -e "\n${GREEN}${BOLD}[INFO] Resuming ${APPNAME} installation process now !!!\n"
+      else
+          echo "${RED}${BOLD}[ERROR] Still Python version is lower than 3.8. Terminating the script ... Bye!"
+          exit 1
+      fi
+      rm -f ${TMPDIR_LOCATION}
+  fi
+
+  app="bazarr"
+  PYTHON_PATH=$(which python3)
+  "${PYTHON_PATH}" -m pip install -q -r "${HOME}/.apps/bazarr2/requirements.txt"
+
+  if [[ -d "${HOME}/.apps/${app}2" ]]; then
       echo -e "${YELLOW}${BOLD}[INFO] ${app}2 config stored at ${STOP_COLOR}'${HOME}/.apps/${app}2'"
   else
       echo -e "${RED}${BOLD}[ERROR] ${app}2 config NOT found at ${STOP_COLOR}'${HOME}/.apps/${app}2''${RED}${BOLD}. Terminating the script ... Bye!${STOP_COLOR}"
@@ -212,6 +240,39 @@ EOF
 }
 
 
+systemd_bazarr_service_install() {
+  pythonbinary=$(which python3)
+
+  cat <<EOF | tee "${HOME}"/.config/systemd/user/bazarr.service >/dev/null
+[Unit]
+Description=Bazarr Daemon
+After=network.target
+[Service]
+WorkingDirectory=%h/.apps/bazarr2
+Restart=on-failure
+RestartSec=5
+Type=simple
+ExecStart=${pythonbinary} %h/.apps/bazarr2/bazarr.py
+KillSignal=SIGINT
+TimeoutStopSec=20
+SyslogIdentifier=bazarr
+ExecStartPre=/bin/sleep 10
+[Install]
+WantedBy=default.target
+EOF
+
+  systemctl --user daemon-reload
+
+  if [[ -f "${HOME}/.config/systemd/user/${app}.service" ]]; then
+      echo -e "${YELLOW}${BOLD}[INFO] ${app}2 systemd file created at ${STOP_COLOR}'${HOME}/.config/systemd/user/${app}.service'"
+  else
+      echo -e "${RED}${BOLD}[ERROR] ${app}2 systemd file NOT found at ${STOP_COLOR}'${HOME}/.config/systemd/user/${app}.service'${RED}${BOLD}. Terminating the script... Bye!${STOP_COLOR}"
+      exit 1
+  fi
+}
+
+
+
 create_arr_config() {
   cat <<EOF | tee "${HOME}/.apps/${app}2/config.xml" >/dev/null
 <Config>
@@ -254,10 +315,10 @@ update_arr_config() {
 
 
 update_bazarr_config() {
-  local config="${HOME}/.apps/bazarr2/data/config/config.ini"
+  local config="${HOME}/.apps/bazarr2/data/config/config.yaml"
   if [ ! -f "${config}" ] || [ -z "$(cat "${config}")" ]; then
     echo
-    echo -e "${RED}${BOLD}[ERROR] ${app^}2's config.xml does not exist or is empty.${STOP_COLOR}"
+    echo -e "${RED}${BOLD}[ERROR] ${app^}2's config.yaml does not exist or is empty.${STOP_COLOR}"
     exit 1
   fi
 
@@ -313,7 +374,8 @@ EOF
 
 
 create_bazarr_user() {
-  local config="${HOME}/.apps/bazarr2/data/config/config.ini"
+  local config="${HOME}/.apps/bazarr2/data/config/config.yaml"
+  password_hash=$(echo -n "${password}" | md5sum | awk '{print $1}')
   count=1
   while [ ! -f "${config}" ] && [ ${count} -le 6 ]; do
     if [ ${count} -ge 6 ]; then
@@ -349,7 +411,7 @@ EOF
 
 
 update_bazarr_user() {
-  local config="${HOME}/.apps/bazarr2/data/config/config.ini"
+  local config="${HOME}/.apps/bazarr2/data/config/config.yaml"
   sed -i "/^\[auth\]$/,/^\[/ s/username = .*/username = ${USER}/g" "${config}"
   sed -i "/^\[auth\]$/,/^\[/ s/password = .*/password = ${password_hash}/g" "${config}"
 }
@@ -392,6 +454,8 @@ fresh_install() {
     required_paths
     get_password
     if [[ ${app} == 'bazarr' ]]; then
+        echo -e "\n${BLUE}${BOLD}[LIST] Prerequisite for ${app}${STOP_COLOR}"
+        echo " [+] Python version 3.8.1 or above."
         get_bazarr_binaries
     else
         get_binaries
@@ -401,7 +465,11 @@ fresh_install() {
     fi
     echo -e "\n${MAGENTA}${BOLD}[STAGE-3] Set up ${app}2 Nginx and Systemd${STOP_COLOR}"
     nginx_conf_install
-    systemd_service_install
+    if [[ ${app} == 'bazarr' ]]; then
+        systemd_bazarr_service_install
+    else
+        systemd_service_install
+    fi
 
     systemctl --user --quiet enable --now "${app}.service" >/dev/null 2>&1
     echo
