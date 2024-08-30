@@ -26,28 +26,33 @@ print_welcome_message() {
 
 install_filebot() {
     echo -e "\n${BLUE}${BOLD}[LIST] ${APPNAME} versions available for installation:${STOP_COLOR}"
-    echo "1) 5.0.1"
-    echo "2) 5.0.0"
-    echo "3) 4.9.4"
-    echo -e "4) 4.9.3\n"
+    echo "1) 5.1.5"
+    echo "2) 5.0.1"
+    echo "3) 5.0.0"
+    echo "4) 4.9.4"
+    echo -e "5) 4.9.3\n"
 
     while true; do
         read -r -p "${BLUE}${BOLD}[INPUT REQUIRED] Enter your version choice${STOP_COLOR} '[1-4]'${BLUE}${BOLD}: ${STOP_COLOR} " SELECTED_VERSION
         case ${SELECTED_VERSION} in
             1)
-                version=5.0.1
+                version=5.1.5
                 break
                 ;;
             2)
+                version=5.0.1
+                break
+                ;;
+            3)
                 version=5.0.0
                 break
                 ;;
 
-            3)
+            4)
                 version=4.9.4
                 break
                 ;;
-            4)
+            5)
                 version=4.9.3
                 break
                 ;;
