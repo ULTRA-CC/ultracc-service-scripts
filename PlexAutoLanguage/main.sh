@@ -14,7 +14,7 @@ GREEN=$(tput setaf 2)
 STOP_COLOR=$(tput sgr0)
 
 CONFIG_DIR="$HOME/scripts/Plex-Auto-Language"
-CONFIG_FILE="${CONFIG_DIR}/config/config.yaml"
+CONFIG_FILE="${CONFIG_DIR}/config/default.yaml"
 PLEX_PREFS_FILE="${HOME}/.config/plex/Library/Application Support/Plex Media Server/Preferences.xml"
 TMPDIR_LOCATION="$HOME/.tmp/plex_auto_language-$(date +%Y%m%d-%H%M%S)"
 
@@ -29,11 +29,10 @@ print_welcome_message() {
 
 
 check_python_version() {
-  python_path=$(command -v python)
+  python_path=$(command -v python3)
   echo -e "${YELLOW}${BOLD}[INFO] Python path available on ${HOME} to use:${STOP_COLOR} '${python_path}'"
 
-  INSTALLED_PYTHON_VERSION=$('${python_path}' --version 2>&1)
-
+  INSTALLED_PYTHON_VERSION=$(${python_path} --version 2>&1)
   if [[ ${INSTALLED_PYTHON_VERSION} =~ Python\ ([0-9]+\.[0-9]+) ]]; then
     installed_version="${BASH_REMATCH[1]}"
   else
