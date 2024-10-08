@@ -31,29 +31,24 @@ main_fn() {
     echo -e "${YELLOW}${BOLD}[WARNING] Disclaimer: This is an unofficial script and is not supported by Ultra.cc staff. Please proceed only if you are experienced with managing such custom installs on your own.${STOP_COLOR}\n"
 
     echo -e "${BLUE}${BOLD}[LIST] Operations available for ${APPNAME}:${STOP_COLOR}"
-    echo "1) Bazarr"
-    echo "2) Lidarr"
-    echo "3) Prowlarr"
-    echo -e "4) Readarr\n"
+    echo "1) Lidarr"
+    echo "2) Prowlarr"
+    echo -e "3) Readarr\n"
 
-    read -rp "${BLUE}${BOLD}[INPUT REQUIRED] Enter your operation choice${STOP_COLOR} '[1-4]'${BLUE}${BOLD}: ${STOP_COLOR}" OPERATION_CHOICE
+    read -rp "${BLUE}${BOLD}[INPUT REQUIRED] Enter your operation choice${STOP_COLOR} '[1-3]'${BLUE}${BOLD}: ${STOP_COLOR}" OPERATION_CHOICE
     echo
 
     # Check user choice and execute function
     case "$OPERATION_CHOICE" in
         1)
             branch="master"
-            app="bazarr"
-            ;;
-        2)
-            branch="master"
             app="lidarr"
             ;;
-        3)
+        2)
             branch="develop"
             app="prowlarr"
             ;;
-        4)
+        3)
             branch="develop"
             app="readarr"
             ;;
@@ -123,61 +118,6 @@ get_binaries() {
   fi
 }
 
-get_bazarr_binaries() {
-  echo
-  pythonbinary=$(which python3)
-
-  if /usr/bin/python3 -V | grep -q -E "3.([7-9]|1[0-9]).*";then
-     pythonbinary="/usr/bin/python3"
-  fi
-
-  echo -n "Pulling new binaries.."
-  mkdir -p "${HOME}"/.config/.temp
-  [ -d "${HOME}/.apps/bazarr2/data" ] && mv "${HOME}/.apps/bazarr2/data" "${HOME}"/.config/.temp/
-  rm -rf "${HOME}/.apps/bazarr2"/*
-  wget -qO "${HOME}/.config/.temp/bazarr.zip" --content-disposition "https://github.com/morpheus65535/bazarr/releases/latest/download/bazarr.zip"
-  unzip "${HOME}/.config/.temp/bazarr.zip" -d "${HOME}/.apps/bazarr2" >/dev/null 2>&1
-  [ -d "${HOME}/.config/.temp/data" ] && mv "${HOME}/.config/.temp/data" "${HOME}/.apps/bazarr2/"
-  rm -rf "${HOME}"/.config/.temp
-
-  echo -e "\n\n${MAGENTA}${BOLD}[STAGE] Check Installed Python version${STOP_COLOR}"
-  PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 8))')
-  if [[ "$PY_VERSION_CHECK" == "True" ]]; then
-      echo -e "${YELLOW}${BOLD}[INFO] Installed Python version is 3.8 or larger.${STOP_COLOR}"
-  else
-      echo -e "${YELLOW}${BOLD}[[ WARNING ]] Python version is less than 3.8. Hence, running python install script for latest version ...."
-      sleep 5
-      mkdir -p ${TMPDIR_LOCATION}
-      wget -qO ${TMPDIR_LOCATION}/python-installer.sh https://scripts.usbx.me/util-v2/LanguageInstaller/Python-Installer/main.sh
-      source ${TMPDIR_LOCATION}/python-installer.sh
-      source ~/.profile
-
-      #recheck python version
-      PYTHON_PATH=$(which python3)
-      PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 8))')
-      if [[ "$PY_VERSION_CHECK" == "True" ]]; then
-          echo -e "\n${YELLOW}${BOLD}[INFO] Installed Python version is 3.8 or larger.${STOP_COLOR}"
-          echo -e "\n${GREEN}${BOLD}[INFO] Resuming ${APPNAME} installation process now !!!\n"
-      else
-          echo "${RED}${BOLD}[ERROR] Still Python version is lower than 3.8. Terminating the script ... Bye!"
-          exit 1
-      fi
-      rm -f ${TMPDIR_LOCATION}
-  fi
-
-  app="bazarr"
-  PYTHON_PATH=$(which python3)
-  "${PYTHON_PATH}" -m pip install -q -r "${HOME}/.apps/bazarr2/requirements.txt"
-
-  if [[ -d "${HOME}/.apps/${app}2" ]]; then
-      echo -e "${YELLOW}${BOLD}[INFO] ${app}2 config stored at ${STOP_COLOR}'${HOME}/.apps/${app}2'"
-  else
-      echo -e "${RED}${BOLD}[ERROR] ${app}2 config NOT found at ${STOP_COLOR}'${HOME}/.apps/${app}2''${RED}${BOLD}. Terminating the script ... Bye!${STOP_COLOR}"
-      exit 1
-  fi
-}
-
-
 nginx_conf_install() {
   cat <<EOF | tee "${HOME}/.apps/nginx/proxy.d/${app}2.conf" >/dev/null
 location /${app}2 {
@@ -239,40 +179,6 @@ EOF
   fi
 }
 
-
-systemd_bazarr_service_install() {
-  pythonbinary=$(which python3)
-
-  cat <<EOF | tee "${HOME}"/.config/systemd/user/bazarr.service >/dev/null
-[Unit]
-Description=Bazarr Daemon
-After=network.target
-[Service]
-WorkingDirectory=%h/.apps/bazarr2
-Restart=on-failure
-RestartSec=5
-Type=simple
-ExecStart=${pythonbinary} %h/.apps/bazarr2/bazarr.py
-KillSignal=SIGINT
-TimeoutStopSec=20
-SyslogIdentifier=bazarr
-ExecStartPre=/bin/sleep 10
-[Install]
-WantedBy=default.target
-EOF
-
-  systemctl --user daemon-reload
-
-  if [[ -f "${HOME}/.config/systemd/user/${app}.service" ]]; then
-      echo -e "${YELLOW}${BOLD}[INFO] ${app}2 systemd file created at ${STOP_COLOR}'${HOME}/.config/systemd/user/${app}.service'"
-  else
-      echo -e "${RED}${BOLD}[ERROR] ${app}2 systemd file NOT found at ${STOP_COLOR}'${HOME}/.config/systemd/user/${app}.service'${RED}${BOLD}. Terminating the script... Bye!${STOP_COLOR}"
-      exit 1
-  fi
-}
-
-
-
 create_arr_config() {
   cat <<EOF | tee "${HOME}/.apps/${app}2/config.xml" >/dev/null
 <Config>
@@ -309,23 +215,6 @@ update_arr_config() {
   sed -i "s+<Port>.*</Port>+<Port>${port}</Port>+g" "${HOME}/.apps/${app}2/config.xml"
   sed -i "s+<UrlBase>.*</UrlBase>+<UrlBase>/${app}2</UrlBase>+g" "${HOME}/.apps/${app}2/config.xml"
   sed -i "s+<BindAddress>.*</BindAddress>+<BindAddress>127.0.0.1</BindAddress>+g" "${HOME}/.apps/${app}2/config.xml"
-
-  echo -e "${YELLOW}${BOLD}[INFO] ${app}2 config stored at ${STOP_COLOR}'${HOME}/.apps/${app}2'"
-}
-
-
-update_bazarr_config() {
-  local config="${HOME}/.apps/bazarr2/data/config/config.yaml"
-  if [ ! -f "${config}" ] || [ -z "$(cat "${config}")" ]; then
-    echo
-    echo -e "${RED}${BOLD}[ERROR] ${app^}2's config.yaml does not exist or is empty.${STOP_COLOR}"
-    exit 1
-  fi
-
-  sed -i '/^\[general\]$/,/^\[/ s/ip = .*/ip = 127.0.0.1/g' "${config}"
-  sed -i "/^\[general\]$/,/^\[/ s/port = .*/port = ${port}/g" "${config}"
-  sed -i '/^\[general\]$/,/^\[/ s/base_url = .*/base_url = \/bazarr2/g' "${config}"
-  sed -i '/^\[auth\]$/,/^\[/ s/type = .*/type = form/g' "${config}"
 
   echo -e "${YELLOW}${BOLD}[INFO] ${app}2 config stored at ${STOP_COLOR}'${HOME}/.apps/${app}2'"
 }
@@ -373,47 +262,12 @@ EOF
 }
 
 
-create_bazarr_user() {
-  local config="${HOME}/.apps/bazarr2/data/config/config.yaml"
-  password_hash=$(echo -n "${password}" | md5sum | awk '{print $1}')
-  count=1
-  while [ ! -f "${config}" ] && [ ${count} -le 6 ]; do
-    if [ ${count} -ge 6 ]; then
-      echo "${RED}${BOLD}[ERROR] Unable to create ${app^} config, install aborted. Please check port selection, HDD IO and other resource utilization.${STOP_COLOR}"
-      echo "${YELLOW}${BOLD}[INFO]Then run the script again and choose Fresh Install."
-      exit 1
-    fi
-    sleep 5
-    count=$(("${count}" + 1))
-  done
-
-  systemctl --user stop "bazarr.service"
-
-  sed -i '/^\[general\]$/,/^\[/ s/ip = .*/ip = 127.0.0.1/g' "${config}"
-  sed -i "/^\[general\]$/,/^\[/ s/port = .*/port = ${port}/g" "${config}"
-  sed -i '/^\[general\]$/,/^\[/ s/base_url = .*/base_url = \/bazarr2/g' "${config}"
-  sed -i '/^\[auth\]$/,/^\[/ s/type = .*/type = form/g' "${config}"
-  sed -i "/^\[auth\]$/,/^\[/ s/username = .*/username = ${USER}/g" "${config}"
-  sed -i "/^\[auth\]$/,/^\[/ s/password = .*/password = ${password_hash}/g" "${config}"
-
-  systemctl --user restart "bazarr.service"
-
-}
-
-
 update_arr_user() {
   password_hash=$(echo -n "${password}" | sha256sum | awk '{print $1}')
   sqlite3 "${HOME}/.apps/${app}2/${app}.db" <<EOF
 UPDATE Users
 SET Password = "$password_hash";
 EOF
-}
-
-
-update_bazarr_user() {
-  local config="${HOME}/.apps/bazarr2/data/config/config.yaml"
-  sed -i "/^\[auth\]$/,/^\[/ s/username = .*/username = ${USER}/g" "${config}"
-  sed -i "/^\[auth\]$/,/^\[/ s/password = .*/password = ${password_hash}/g" "${config}"
 }
 
 
@@ -453,36 +307,18 @@ fresh_install() {
     echo -e "\n${MAGENTA}${BOLD}[STAGE-2] Configure ${app}2${STOP_COLOR}"
     required_paths
     get_password
-    if [[ ${app} == 'bazarr' ]]; then
-        echo -e "\n${BLUE}${BOLD}[LIST] Prerequisite for ${app}${STOP_COLOR}"
-        echo " [+] Python version 3.8.1 or above."
-        get_bazarr_binaries
-    else
-        get_binaries
-    fi
-    if [[ ! ${app} == 'bazarr' ]]; then
-        create_arr_config
-    fi
+    get_binaries
+    create_arr_config
     echo -e "\n${MAGENTA}${BOLD}[STAGE-3] Set up ${app}2 Nginx and Systemd${STOP_COLOR}"
     nginx_conf_install
-    if [[ ${app} == 'bazarr' ]]; then
-        systemd_bazarr_service_install
-    else
-        systemd_service_install
-    fi
-
+    systemd_service_install
     systemctl --user --quiet enable --now "${app}.service" >/dev/null 2>&1
     echo
     echo
     echo -e "${YELLOW}${BOLD}[INFO] Waiting for initial DB to be created..${STOP_COLOR}"
     sleep 10
 
-    if [[ ${app} == 'bazarr' ]]; then
-        create_bazarr_user
-    else
-        create_arr_user
-    fi
-
+    create_arr_user
     if systemctl --user is-active --quiet "${app}.service" && systemctl --user is-active --quiet "nginx.service"; then
       echo
       echo
@@ -498,14 +334,6 @@ fresh_install() {
   fi
 }
 
-#main fn - 2
-if [[ ${app} == 'bazarr' ]]; then
-    if ! python3 -V | grep -q -E "3.([7-9]|1[0-9]).*"  &&  ! /usr/bin/python3 -V | grep -q -E "3.([7-9]|1[0-9]).*"id; then
-        echo "${RED}${BOLD}[ERROR] Bazarr requires python3.7 + to run.${STOP_COLOR}"
-        echo "${YELLOW}${BOLD}[INFO] Please install a python3 version greater than 3.7 first, using instruction from here -${STOP_COLOR} https://docs.usbx.me/books/pyenv/page/how-to-install-python-using-pyenv"
-        exit 1
-    fi
-fi
 
 backup=''
 fresh_install
@@ -536,18 +364,10 @@ if [ -d "${HOME}/.apps/${app}2" ]; then
       #clear
       port_picker
       required_paths
-      if [[ ${app} == 'bazarr' ]]; then
-          get_bazarr_binaries
-      else
-          get_binaries
-      fi
+      get_binaries
       nginx_conf_install
       systemd_service_install
-      if [[ ${app} == 'bazarr' ]]; then
-          update_bazarr_config
-      else
-          update_arr_config
-      fi
+      update_arr_config
       systemctl --user restart "${app}.service"
       echo
       echo "${GREEN}${BOLD}[SUCCESS] ${app^}2 has been updated & repaired.${STOP_COLOR}"
@@ -560,11 +380,7 @@ if [ -d "${HOME}/.apps/${app}2" ]; then
       create_backup
       echo
       get_password
-      if [[ ${app} == 'bazarr' ]]; then
-          update_bazarr_user
-      else
-          update_arr_user
-      fi
+      update_arr_user
       systemctl --user restart "${app}.service"
       echo
       echo "${GREEN}${BOLD}[SUCCESS] ${app^}2's password changed successfully. New Password is${STOP_COLOR} '${password}' "
