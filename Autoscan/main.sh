@@ -190,10 +190,10 @@ install_autoscan() {
     # create config file
     create_config_file
 
-    if [[ -f "${CONFIG_DIR}/autoscan.conf" ]]; then
-        echo -e "${YELLOW}${BOLD}[INFO] ${APPNAME} config located at${STOP_COLOR} '${CONFIG_DIR}/autoscan.conf'"
+    if [[ -f "${CONFIG_DIR}/config.yml" ]]; then
+        echo -e "${YELLOW}${BOLD}[INFO] ${APPNAME} config located at${STOP_COLOR} '${CONFIG_DIR}/config.yml'"
     else
-        echo -e "${RED}${BOLD}[ERROR] Failed to download ${APPNAME} config file at${STOP_COLOR} '${CONFIG_DIR}/autoscan.conf'${RED}${BOLD}. Terminating the script ... Bye!"
+        echo -e "${RED}${BOLD}[ERROR] Failed to download ${APPNAME} config file at${STOP_COLOR} '${CONFIG_DIR}/config.yml'${RED}${BOLD}. Terminating the script ... Bye!"
         exit 1
     fi
 
