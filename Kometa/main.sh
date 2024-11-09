@@ -13,7 +13,7 @@ GREEN=$(tput setaf 2)
 STOP_COLOR=$(tput sgr0)
 
 CONFIG_DIR="$HOME/scripts/kometa"
-CONFIG_FILE="${CONFIG_DIR}/config/config.yaml"
+CONFIG_FILE="${CONFIG_DIR}/config/config.yml"
 PLEX_PREFS_FILE="${HOME}/.config/plex/Library/Application Support/Plex Media Server/Preferences.xml"
 TMPDIR_LOCATION="$HOME/.tmp/kometa-$(date +%Y%m%d-%H%M%S)"
 
@@ -152,7 +152,7 @@ After=multi-user.target
 Type=simple
 Restart=always
 RestartSec=3
-ExecStart=${INSTALLED_PYTHON_PATH} %h/scripts/${APPNAME}/main.py -c %h/scripts/${APPNAME}/config/config.yaml
+ExecStart=${INSTALLED_PYTHON_PATH} %h/scripts/${APPNAME}/main.py -c %h/scripts/${APPNAME}/config/config.yml
 StandardOutput=file:%h/scripts/${APPNAME}/kometa.log
 
 [Install]
