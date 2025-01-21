@@ -9,7 +9,7 @@ clear
 
 #Check Debian Version
 
-lsb_release -d | grep -q 10 && debversion="buster" || debversion="stretch"
+debversion=$(lsb_release -r | awk '{print $2}' | awk '{if ($1 == 9) print "stretch"; else if ($1 == 10) print "buster"; else if ($1 == 11) print "bullseye"; else {print "[ERROR] Unsupported OS"; exit 1}}')
 
 default_version="2.33.5"
 
