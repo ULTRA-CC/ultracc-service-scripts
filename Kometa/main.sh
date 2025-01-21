@@ -14,9 +14,9 @@ STOP_COLOR=$(tput sgr0)
 
 CONFIG_DIR="$HOME/scripts/kometa"
 CONFIG_FILE="${CONFIG_DIR}/config/config.yml"
+CONFIG_TEMPLATE_FILE="${CONFIG_DIR}/config/config.yml.template"
 PLEX_PREFS_FILE="${HOME}/.config/plex/Library/Application Support/Plex Media Server/Preferences.xml"
 TMPDIR_LOCATION="$HOME/.tmp/kometa-$(date +%Y%m%d-%H%M%S)"
-
 
 print_welcome_message() {
     term_width=$(tput cols)
@@ -25,14 +25,13 @@ print_welcome_message() {
     echo -e "\n${CYAN}${BOLD}${padding}${welcome_message}${STOP_COLOR}\n"
 }
 
-
 check_python_version() {
   python_path=$(command -v python)
   echo -e "${YELLOW}${BOLD}[INFO] Python path available on ${HOME} to use:${STOP_COLOR} '${python_path}'"
 
-  INSTALLED_PYTHON_VERSION=$('${python_path}' --version 2>&1)
+  INSTALLED_PYTHON_VERSION=$(${python_path} --version 2>&1)
 
-  if [[ ${INSTALLED_PYTHON_VERSION} =~ Python\ ([0-9]+\.[0-9]+) ]]; then
+  if [[ ${INSTALLED_PYTHON_VERSION} =~ [Pp]ython\ ([0-9]+\.[0-9]+) ]]; then
     installed_version="${BASH_REMATCH[1]}"
   else
     echo "Error: Unable to determine Python version."
@@ -44,7 +43,6 @@ check_python_version() {
   major_version="${version_parts[0]}"
   minor_version="${version_parts[1]}"
 
-  # Compare the major and minor version numbers
   if [[ "$major_version" -lt 3 || ("$major_version" -eq 3 && "$minor_version" -lt 8) ]]; then
     echo -e "${YELLOW}${BOLD}[INFO] Python 3.8+ required to install ${APPNAME}.${STOP_COLOR}"
     echo -e "${YELLOW}${BOLD}[INFO] Please install Python 3.8 or higher version using the following guide:${STOP_COLOR} 'https://docs.ultra.cc/books/pyenv/page/how-to-install-python-using-pyenv'${STOP_COLOR}"
@@ -54,7 +52,6 @@ check_python_version() {
     echo "${YELLOW}${BOLD}[INFO] Installed Python version on ${HOME}:${STOP_COLOR} '${INSTALLED_PYTHON_VERSION}'"
   fi
 }
-
 
 get_plex_direct_url() {
   local uuid=$(grep -o 'CertificateUUID="[a-zA-Z0-9]*"' "$PLEX_PREFS_FILE" | grep -o '".*"' | sed 's/"//g')
@@ -66,7 +63,6 @@ get_plex_direct_url() {
   echo -e "\n${YELLOW}${BOLD}[INFO] Plex Direct URL:${STOP_COLOR} '${PLEX_DIRECT_URL}'"
 }
 
-
 get_tmdb_api_key() {
     retries=3
     while (( retries > 0 )); do
@@ -75,14 +71,14 @@ get_tmdb_api_key() {
             break
         else
             echo -e "${RED}${BOLD}[ERROR] API Key can't be empty. You have $retries attempts left.${STOP_COLOR}"
+            retries=$((retries - 1))
             if (( retries == 0 )); then
                 echo -e "\n${RED}${BOLD}[ERROR] Maximum attempts reached. Terminating the script ... Bye!${STOP_COLOR}"
-                exit
+                exit 1
             fi
         fi
     done
 }
-
 
 install_kometa() {
     if [ -d "${CONFIG_DIR}" ]; then
@@ -99,16 +95,15 @@ install_kometa() {
     mkdir -p "${CONFIG_DIR}"
     git clone https://github.com/Kometa-Team/Kometa.git "${CONFIG_DIR}" >/dev/null 2>&1
 
-    if [[ -f "${CONFIG_FILE}" ]]; then
-        echo -e "${YELLOW}${BOLD}[INFO] ${APPNAME} config located at${STOP_COLOR} '${CONFIG_DIR}/config'"
+    if [[ -f "${CONFIG_TEMPLATE_FILE}" ]]; then
+        mv "${CONFIG_TEMPLATE_FILE}" "${CONFIG_FILE}"
+        echo -e "${YELLOW}${BOLD}[INFO] Renamed config template to:${STOP_COLOR} '${CONFIG_FILE}'"
     else
-        echo -e "${RED}${BOLD}[ERROR] Failed to download ${APPNAME} config file at${STOP_COLOR} '${CONFIG_DIR}/config'${RED}${BOLD}. Terminating the script ... Bye!"
+        echo -e "${RED}${BOLD}[ERROR] Failed to download ${APPNAME} config template at:${STOP_COLOR} '${CONFIG_TEMPLATE_FILE}'"
         exit 1
     fi
 
-    # Check Python version
     check_python_version
-
     get_plex_direct_url
 
     PLEX_TOKEN=$(grep -oP 'PlexOnlineToken="\K[^"]+' "$PLEX_PREFS_FILE")
@@ -118,8 +113,6 @@ install_kometa() {
 
     INSTALLED_PYTHON_PATH=$(command -v python)
 
-
-    # Write the content to the config file
     cat <<EOF >"$CONFIG_FILE"
 plex:
   url: "${PLEX_DIRECT_URL}"
@@ -136,11 +129,9 @@ EOF
 
     echo -e "\n${YELLOW}${BOLD}[INFO] ${APPNAME} config file created at:${STOP_COLOR} '$CONFIG_FILE'"
 
-    # pip install requirements
     (cd ${CONFIG_DIR} && pip install -r requirements.txt) >/dev/null 2>&1
 
     echo -e "${MAGENTA}${BOLD}[STAGE-2] Create systemd for ${APPNAME}${STOP_COLOR}"
-    # Create systemd user service file
     local service_file="$HOME/.config/systemd/user/kometa.service"
 
     cat <<EOF >"$service_file"
@@ -166,10 +157,9 @@ EOF
     echo -e "\n${GREEN}${BOLD}[SUCCESS] ${APPNAME} installation completed! Check the logs at:${STOP_COLOR} '${HOME}/scripts/${APPNAME}/kometa.log'"
 }
 
-
 uninstall_kometa() {
     systemctl --user stop kometa.service
-    systemctl --user disable kometa.service  >/dev/null 2>&1
+    systemctl --user disable kometa.service >/dev/null 2>&1
 
     SERVICE_FILE="$HOME/.config/systemd/user/kometa.service"
     rm -f "${SERVICE_FILE}"
@@ -184,7 +174,6 @@ uninstall_kometa() {
     fi
 }
 
-
 update_TMDB_API_key() {
     if [ ! -f "$CONFIG_FILE" ]; then
         echo -e "${RED}${BOLD}[ERROR] ${APPNAME} config file can't be found. Terminating the script ... Bye!"
@@ -193,42 +182,34 @@ update_TMDB_API_key() {
 
     get_tmdb_api_key
 
-    sed -i "s/apikey: \"$tmdb_api_key\"/apikey: \"${SELECTED_TMDB_API_KEY}\"/" "$CONFIG_FILE"
-    echo "TMDB API key has been updated in $CONFIG_FILE."
+    sed -i "s/apikey: \".*\"/apikey: \"${SELECTED_TMDB_API_KEY}\"/" "$CONFIG_FILE"
+    echo -e "${GREEN}[INFO] TMDB API key has been updated in $CONFIG_FILE.${STOP_COLOR}"
 }
-
 
 main_fn() {
     clear
     print_welcome_message
-    echo -e "${YELLOW}${BOLD}[WARNING] Disclaimer: This is an unofficial script and is not supported by Ultra.cc staff. Please proceed only if you are experienced with managing such custom installs on your own.${STOP_COLOR}\n"
+    echo -e "${YELLOW}${BOLD}[WARNING] Disclaimer: This is an unofficial script and is not supported by Ultra.cc staff. Please proceed only if you understand and accept this.${STOP_COLOR}\n"
 
-    echo -e "${BLUE}${BOLD}[LIST] Operations available for ${APPNAME}:${STOP_COLOR}"
-    echo "1) Install"
-    echo "2) Uninstall"
-    echo -e "3) Update TMDB API Key\n"
+    echo -e "${YELLOW}${BOLD}Actions Available: [1] Install ${APPNAME}, [2] Uninstall ${APPNAME}, [3] Update TMDB API key${STOP_COLOR}\n"
 
-    read -rp "${BLUE}${BOLD}[INPUT REQUIRED] Enter your operation choice${STOP_COLOR} '[1-3]'${BLUE}${BOLD}: ${STOP_COLOR}" OPERATION_CHOICE
-    echo
+    read -rp "${MAGENTA}${BOLD}[INPUT REQUIRED] Select an action [1, 2, or 3]:${STOP_COLOR} " SELECTED_ACTION
 
-    # Check user choice and execute function
-    case "$OPERATION_CHOICE" in
-        1)
-            install_${APPNAME,,}
-            ;;
-        2)
-            uninstall_${APPNAME,,}
-            ;;
-        3)
-            update_TMDB_API_key
-            ;;
-        *)
-            echo -e "${RED}{BOLD}[ERROR] Invalid choice. Please enter a number between 1 and 3.${STOP_COLOR}"
-            exit 1
-            ;;
+    case "$SELECTED_ACTION" in
+    1)
+        install_kometa
+        ;;
+    2)
+        uninstall_kometa
+        ;;
+    3)
+        update_TMDB_API_key
+        ;;
+    *)
+        echo -e "${RED}${BOLD}[ERROR] Invalid input provided. Terminating the script ... Bye!"
+        exit 1
+        ;;
     esac
 }
 
-
-# Call the main function
 main_fn
