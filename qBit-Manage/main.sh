@@ -53,11 +53,11 @@ install_qbit-manage() {
     mkdir -p ${TMPDIR_LOCATION}
 
     echo -e "${MAGENTA}${BOLD}[STAGE-1] Check Installed Python version${STOP_COLOR}"
-    PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 8))')
+    PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 9))')
     if [[ "$PY_VERSION_CHECK" == "True" ]]; then
-        echo -e "${YELLOW}${BOLD}[INFO] Installed Python version is 3.8 or larger.${STOP_COLOR}"
+        echo -e "${YELLOW}${BOLD}[INFO] Installed Python version is 3.9 or above.${STOP_COLOR}"
     else
-        echo -e "${YELLOW}${BOLD}[[ WARNING ]] Python version is less than 3.8. Hence, running python install script for latest version ...."
+        echo -e "${YELLOW}${BOLD}[[ WARNING ]] Python version is less than 3.9. Hence, running python install script for latest version ...."
         sleep 5
         wget -qO ${TMPDIR_LOCATION}/python-installer.sh https://scripts.usbx.me/util-v2/LanguageInstaller/Python-Installer/main.sh
         source ${TMPDIR_LOCATION}/python-installer.sh
@@ -65,13 +65,13 @@ install_qbit-manage() {
 
         #recheck python version
         PYTHON_PATH=$(which python3)
-        PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 8))')
+        PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 9))')
         if [[ "$PY_VERSION_CHECK" == "True" ]]; then
-            echo -e "\n${YELLOW}${BOLD}[INFO] Installed Python version is 3.8 or larger.${STOP_COLOR}"
+            echo -e "\n${YELLOW}${BOLD}[INFO] Installed Python version is 3.9 or larger.${STOP_COLOR}"
             APPNAME="qBit-Manage"
             echo -e "\n${GREEN}${BOLD}[INFO] Resuming ${APPNAME} installation process now !!!\n"
         else
-            echo "${RED}${BOLD}[ERROR] Still Python version is lower than 3.8. Terminating the script ... Bye!"
+            echo "${RED}${BOLD}[ERROR] Still Python version is lower than 3.9. Terminating the script ... Bye!"
             exit 1
         fi
     fi
@@ -88,7 +88,7 @@ install_qbit-manage() {
     fi
 
     echo -e "\n${GREEN}${BOLD}[SUCCESS] ${APPNAME} has been installed successfully.${STOP_COLOR}"
-    echo -e "${YELLOW}${BOLD}   [+] Run command to confirm the installation:${STOP_COLOR} 'python ~/.apps/qbit_manage/qbit_manage.py -h'"
+    echo -e "${YELLOW}${BOLD}   [+] Run command to confirm the installation:${STOP_COLOR} 'python3 ~/.apps/qbit_manage/qbit_manage.py -h'"
 }
 
 
