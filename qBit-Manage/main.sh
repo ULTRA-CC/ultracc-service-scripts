@@ -53,7 +53,7 @@ install_qbit-manage() {
     mkdir -p ${TMPDIR_LOCATION}
 
     echo -e "${MAGENTA}${BOLD}[STAGE-1] Check Installed Python version${STOP_COLOR}"
-    PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 8))')
+    PY_VERSION_CHECK=$($PYTHON_PATH -c 'import sys; print(sys.version_info >= (3, 9))')
     if [[ "$PY_VERSION_CHECK" == "True" ]]; then
         echo -e "${YELLOW}${BOLD}[INFO] Installed Python version is 3.9 or above.${STOP_COLOR}"
     else
