@@ -88,7 +88,7 @@ install_qbit-manage() {
     fi
 
     echo -e "\n${GREEN}${BOLD}[SUCCESS] ${APPNAME} has been installed successfully.${STOP_COLOR}"
-    echo -e "${YELLOW}${BOLD}   [+] Run command to confirm the installation:${STOP_COLOR} 'python3 ~/.apps/qbit_manage/qbit_manage.py -h'"
+    echo -e "${YELLOW}${BOLD}   [+] Run command to confirm the installation:${STOP_COLOR} 'python3 ~/.config/qbit_manage/qbit_manage.py -h'"
 }
 
 
