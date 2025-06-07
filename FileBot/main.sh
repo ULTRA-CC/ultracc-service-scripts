@@ -179,7 +179,8 @@ install_amc_script() {
                 app-transmission stop
                 wget -P ~/scripts/amc https://scripts.usbx.me/main-v2/FileBot/AMC/transmission-amc.sh >/dev/null 2>&1 && chmod +rx ~/scripts/amc/transmission-amc.sh
                 sed -i 's#^    "script-torrent-done-enabled".*#    "script-torrent-done-enabled": true,#' "$HOME"/.config/transmission-daemon/settings.json
-                sed -i 's#^    "script-torrent-done-filename".*#    "script-torrent-done-filename": "'"$HOME"'/scripts/amc/transmission-amc.sh",#' "$HOME"/.config/transmission-daemon/settings.json app-transmission restart
+                sed -i 's#^    "script-torrent-done-filename".*#    "script-torrent-done-filename": "'"$HOME"'/scripts/amc/transmission-amc.sh",#' "$HOME"/.config/transmission-daemon/settings.json
+                app-transmission restart
                 echo -e "${GREEN}${BOLD}[SUCCESS] AMC script for rTorrent has been installed successfully at :${STOP_COLOR} ${HOME}/scripts/amc/transmission-amc.sh"
                 break
             ;;
