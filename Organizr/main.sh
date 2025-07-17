@@ -66,7 +66,7 @@ echo 'location /organizr/api/v2 {
 
     app-nginx restart
 
-    echo -e "\n${GREEN}${BOLD}[SUCCESS] ${APPNAME} has been installed successfully. You should now be able to access Notifiarr at - ${STOP_COLOR}'https://$USER.$HOSTNAME.usbx.me/organizr'"
+    echo -e "\n${GREEN}${BOLD}[SUCCESS] ${APPNAME} has been installed successfully. You should now be able to access Organizr at - ${STOP_COLOR}'https://$USER.$HOSTNAME.usbx.me/organizr'"
     echo -e "  [+] Use your HTTP Access credentials for ${APPNAME}"
 }
 
