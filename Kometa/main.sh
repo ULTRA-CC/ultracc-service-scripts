@@ -212,4 +212,7 @@ main_fn() {
     esac
 }
 
+# Make sure $PATH is up to date
+# Fixes the issue of kometa failing to detect ~/.pyenv right after Python install
+source "$HOME/.profile"
 main_fn
