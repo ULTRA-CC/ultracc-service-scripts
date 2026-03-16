@@ -4,6 +4,7 @@ set -euo pipefail
 
 
 APPNAME="Autopulse"
+# shellcheck disable=SC2034
 VERSION="2026-03-14"
 
 BOLD=$(tput bold)
@@ -35,15 +36,15 @@ print_welcome_message() {
 download_latest_binary() {
     LATEST_VERSION=$(curl -s https://api.github.com/repos/dan-online/autopulse/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
-    mkdir -p ${TMPDIR_LOCATION}/bin
-    cd ${TMPDIR_LOCATION}/bin
+    mkdir -p "${TMPDIR_LOCATION}/bin"
+    cd "${TMPDIR_LOCATION}/bin"
 
     wget -qO "${TMPDIR_LOCATION}/bin/autopulse.tar.gz" "https://github.com/dan-online/autopulse/releases/download/${LATEST_VERSION}/autopulse-x86_64-unknown-linux-musl.tar.gz" >/dev/null 2>&1
 
     tar -xzf autopulse.tar.gz
     chmod +x autopulse
-    mv autopulse $HOME/bin/
-    cd $HOME
+    mv autopulse "$HOME/bin/"
+    cd "$HOME"
 }
 
 
@@ -226,21 +227,23 @@ install_autopulse() {
         exit 1
     fi
 
-    mkdir -p $TMPDIR_LOCATION
+    mkdir -p "$TMPDIR_LOCATION"
     echo -e "${MAGENTA}${BOLD}[STAGE-1] Port selection${STOP_COLOR}"
 
     # Call port_picker function
-    wget -qO ${TMPDIR_LOCATION}/port-selector.sh https://scripts.usbx.me/main-v2/BaseFunctions/port-selector/main.sh
-    source ${TMPDIR_LOCATION}/port-selector.sh
+    wget -qO "${TMPDIR_LOCATION}/port-selector.sh" https://scripts.usbx.me/main-v2/BaseFunctions/port-selector/main.sh
+    # shellcheck disable=SC1091
+    source "${TMPDIR_LOCATION}/port-selector.sh"
 
     port="${SELECTED_PORT}"
 
     echo -e "\n${MAGENTA}${BOLD}[STAGE-2] Configure ${APPNAME}${STOP_COLOR}"
-    mkdir -p ${CONFIG_DIR}
+    mkdir -p "${CONFIG_DIR}"
 
     # Get password
-    wget -qO ${TMPDIR_LOCATION}/set-password.sh https://scripts.usbx.me/main-v2/BaseFunctions/set-password/main.sh
-    source ${TMPDIR_LOCATION}/set-password.sh
+    wget -qO "${TMPDIR_LOCATION}/set-password.sh" https://scripts.usbx.me/main-v2/BaseFunctions/set-password/main.sh
+    # shellcheck disable=SC1091
+    source "${TMPDIR_LOCATION}/set-password.sh"
 
     echo -e "${YELLOW}[INFO] Entered password:${STOP_COLOR} '$CHOSEN_PASSWORD'"
 
@@ -273,7 +276,7 @@ install_autopulse() {
 
     echo -e "\n${MAGENTA}${BOLD}[STAGE-4] Configure Systemd service for ${APPNAME}${STOP_COLOR}"
     systemd_service_file
-    cd $HOME
+    cd "$HOME"
     if [[ -f "${HOME}/.config/systemd/user/autopulse.service" ]]; then
         echo -e "${YELLOW}${BOLD}[INFO] ${APPNAME} systemd file created at ${STOP_COLOR}'${HOME}/.config/systemd/user/autopulse.service'"
     else
@@ -281,7 +284,7 @@ install_autopulse() {
         exit 1
     fi
 
-    rm -rf $TMPDIR_LOCATION
+    rm -rf "$TMPDIR_LOCATION"
 
     systemctl --user enable autopulse.service
     systemctl --user start autopulse.service
@@ -312,8 +315,8 @@ uninstall_autopulse() {
     systemctl --user stop autopulse.service
     systemctl --user disable autopulse.service >/dev/null 2>&1
 
-    rm -f ${HOME}/.config/systemd/user/autopulse.service
-    rm -f ${HOME}/bin/autopulse
+    rm -f "${HOME}/.config/systemd/user/autopulse.service"
+    rm -f "${HOME}/bin/autopulse"
     systemctl --user daemon-reload
 
     if [[ -d "${CONFIG_DIR}" ]]; then
@@ -327,7 +330,7 @@ uninstall_autopulse() {
         fi
     fi
 
-    if [[ -f ${HOME}/.config/systemd/user/autopulse.service ]] || [[ -f ${HOME}/bin/autopulse ]]; then
+    if [[ -f "${HOME}/.config/systemd/user/autopulse.service" ]] || [[ -f "${HOME}/bin/autopulse" ]]; then
         echo -e "${RED}${BOLD}[ERROR] ${APPNAME} could not be fully uninstalled.${STOP_COLOR}"
     else
         echo -e "${GREEN}${BOLD}[SUCCESS] ${APPNAME} has been uninstalled completely.${STOP_COLOR}"
