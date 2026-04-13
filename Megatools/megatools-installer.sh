@@ -13,10 +13,10 @@ fi
 echo
 
 grab_latest_version() {
-    LATEST=$(curl -s https://megatools.megous.com/builds/LATEST)
+    LATEST=$(curl -s https://xff.cz/megatools/builds/LATEST)
     mkdir -p "$HOME"/.megatools-tmp
     cd "$HOME"/.megatools-tmp || exit
-    wget -qO megatools.tar.gz "https://megatools.megous.com/builds/builds/${LATEST}-linux-x86_64.tar.gz"
+    wget -qO megatools.tar.gz "https://xff.cz/megatools/builds/builds/${LATEST}-linux-x86_64.tar.gz"
     tar -xf megatools.tar.gz "${LATEST}-linux-x86_64/megatools" && mv "${LATEST}-linux-x86_64/megatools" "${HOME}/bin/"
     rm -rf "$HOME"/.megatools-tmp
 }
