@@ -36,7 +36,7 @@ install_recyclarr() {
     wget "$DOWNLOAD_URL" -O - 2>/dev/null | tar xJ --overwrite -C "$BIN_DIR" > /dev/null 2>&1
 
     mkdir -p "$CONFIG_DIR"
-    echo -e '\nexport DOTNET_GCHeapHardLimit=10000000\nexport RECYCLARR_APP_DATA="$HOME/.apps/recyclarr/"' >> "$HOME/.bashrc"
+    echo -e '\nexport DOTNET_GCHeapHardLimit=10000000\nexport RECYCLARR_CONFIG_DIR="$HOME/.apps/recyclarr/"' >> "$HOME/.bashrc"
     source "$HOME/.bashrc"
 
     echo -e "\n${GREEN}${BOLD}[SUCCESS] ${APPNAME} has been installed successfully."
@@ -51,7 +51,7 @@ uninstall_recyclarr() {
 
     # Remove entries from bashrc
     sed -i '/DOTNET_GCHeapHardLimit/d' "$HOME/.bashrc"
-    sed -i '/RECYCLARR_APP_DATA/d' "$HOME/.bashrc"
+    sed -i '/RECYCLARR_CONFIG_DIR/d' "$HOME/.bashrc"
 
     if [[ -d "${CONFIG_DIR}" ]] || [[ -f ${HOME}/bin/recyclarr ]]; then
         echo -e "${RED}${BOLD}[ERROR] ${APPNAME} could not be fully uninstalled."
