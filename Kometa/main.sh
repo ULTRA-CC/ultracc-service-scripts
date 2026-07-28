@@ -1,7 +1,11 @@
 #!/bin/bash
 
 APPNAME="Kometa"
-VERSION="2024-07-16"
+APPNAME_LC="kometa" # filesystem + systemd name; APPNAME is display-only
+VERSION="2026-07-26"
+
+PYTHON_MIN_MINOR=10 # kometa.py refuses to run below 3.10
+PYENV_GUIDE="https://docs.ultra.cc/books/pyenv/page/how-to-install-python-using-pyenv"
 
 BOLD=$(tput bold)
 BLUE=$(tput setaf 4)
@@ -12,11 +16,19 @@ MAGENTA=$(tput setaf 5)
 GREEN=$(tput setaf 2)
 STOP_COLOR=$(tput sgr0)
 
-CONFIG_DIR="$HOME/scripts/kometa"
+CONFIG_DIR="$HOME/scripts/${APPNAME_LC}"
 CONFIG_FILE="${CONFIG_DIR}/config/config.yml"
 CONFIG_TEMPLATE_FILE="${CONFIG_DIR}/config/config.yml.template"
 PLEX_PREFS_FILE="${HOME}/.config/plex/Library/Application Support/Plex Media Server/Preferences.xml"
-TMPDIR_LOCATION="$HOME/.tmp/kometa-$(date +%Y%m%d-%H%M%S)"
+SERVICE_FILE="${HOME}/.config/systemd/user/${APPNAME_LC}.service"
+LOG_FILE="${CONFIG_DIR}/${APPNAME_LC}.log"
+
+die() {
+    echo -e "${RED}${BOLD}[ERROR] $1 Terminating the script ... Bye!${STOP_COLOR}"
+    exit 1
+}
+
+info() { echo -e "${YELLOW}${BOLD}[INFO] $1${STOP_COLOR} '$2'"; }
 
 print_welcome_message() {
     term_width=$(tput cols)
@@ -27,88 +39,94 @@ print_welcome_message() {
 
 check_python_version() {
   python_path=$(command -v python)
-  echo -e "${YELLOW}${BOLD}[INFO] Python path available on ${HOME} to use:${STOP_COLOR} '${python_path}'"
+  [[ -n "${python_path}" ]] || die "No 'python' found on PATH. Install Python 3.${PYTHON_MIN_MINOR}+ first: '${PYENV_GUIDE}'."
+  info "Python path available on ${HOME} to use:" "${python_path}"
 
   INSTALLED_PYTHON_VERSION=$(${python_path} --version 2>&1)
 
   if [[ ${INSTALLED_PYTHON_VERSION} =~ [Pp]ython\ ([0-9]+\.[0-9]+) ]]; then
     installed_version="${BASH_REMATCH[1]}"
   else
-    echo "Error: Unable to determine Python version."
-    echo -e "${RED}${BOLD}[ERROR] Failed to determine Python version available on ${HOME}. Terminating the script ... Bye!"
-    exit 1
+    die "Failed to determine Python version available on ${HOME}."
   fi
 
   IFS='.' read -ra version_parts <<<"$installed_version"
   major_version="${version_parts[0]}"
   minor_version="${version_parts[1]}"
 
-  if [[ "$major_version" -lt 3 || ("$major_version" -eq 3 && "$minor_version" -lt 8) ]]; then
-    echo -e "${YELLOW}${BOLD}[INFO] Python 3.8+ required to install ${APPNAME}.${STOP_COLOR}"
-    echo -e "${YELLOW}${BOLD}[INFO] Please install Python 3.8 or higher version using the following guide:${STOP_COLOR} 'https://docs.ultra.cc/books/pyenv/page/how-to-install-python-using-pyenv'${STOP_COLOR}"
-    echo -e "${RED}${BOLD}[ERROR] Terminating the script ... Bye!"
-    exit 1
+  if [[ "$major_version" -lt 3 || ("$major_version" -eq 3 && "$minor_version" -lt ${PYTHON_MIN_MINOR}) ]]; then
+    echo -e "${YELLOW}${BOLD}[INFO] Python 3.${PYTHON_MIN_MINOR}+ required to install ${APPNAME}, found ${installed_version}.${STOP_COLOR}"
+    echo -e "${YELLOW}${BOLD}[INFO] Please install Python 3.${PYTHON_MIN_MINOR} or higher version using the following guide:${STOP_COLOR} '${PYENV_GUIDE}'${STOP_COLOR}"
+    die "Unsupported Python version."
   else
-    echo "${YELLOW}${BOLD}[INFO] Installed Python version on ${HOME}:${STOP_COLOR} '${INSTALLED_PYTHON_VERSION}'"
+    info "Installed Python version on ${HOME}:" "${INSTALLED_PYTHON_VERSION}"
   fi
 }
 
 get_plex_direct_url() {
-  local uuid=$(grep -o 'CertificateUUID="[a-zA-Z0-9]*"' "$PLEX_PREFS_FILE" | grep -o '".*"' | sed 's/"//g')
-  local ip=$(dig +short "${HOSTNAME}-direct.usbx.me" | sed 's/\./-/g')
-  local plexport="$(app-ports show | grep "Plex Media Server" | awk '{print $1}')"
-  local url="https://${ip}.${uuid}.plex.direct:${plexport}"
+  local uuid ip plexport
+  uuid=$(grep -o 'CertificateUUID="[a-zA-Z0-9]*"' "$PLEX_PREFS_FILE" | grep -o '".*"' | sed 's/"//g')
+  ip=$(dig +short "${HOSTNAME}-direct.usbx.me" | grep -m1 -E '^[0-9.]+$' | sed 's/\./-/g') # -m1: multi-A records
+  plexport="$(app-ports show | grep "Plex Media Server" | awk '{print $1}')"
 
-  PLEX_DIRECT_URL="${url}"
+  # an empty part here silently yields an unreachable plex.direct URL, so fail loudly instead
+  [[ -n "${uuid}" ]]     || die "No CertificateUUID in Preferences.xml; start Plex once and claim it, then retry."
+  [[ -n "${ip}" ]]       || die "'${HOSTNAME}-direct.usbx.me' did not resolve; cannot build the Plex URL."
+  [[ -n "${plexport}" ]] || die "No Plex Media Server port from 'app-ports show'; is Plex installed?"
+
+  PLEX_DIRECT_URL="https://${ip}.${uuid}.plex.direct:${plexport}"
   echo -e "\n${YELLOW}${BOLD}[INFO] Plex Direct URL:${STOP_COLOR} '${PLEX_DIRECT_URL}'"
+}
+
+get_plex_token() {
+    PLEX_TOKEN=$(grep -oP 'PlexOnlineToken="\K[^"]+' "$PLEX_PREFS_FILE")
+    [[ -n "${PLEX_TOKEN}" ]] || die "No PlexOnlineToken in Preferences.xml; sign in to Plex once, then retry."
+    echo -e "\n${YELLOW}${BOLD}[INFO] Plex Token:${STOP_COLOR} '${PLEX_TOKEN}'"
 }
 
 get_tmdb_api_key() {
     retries=3
     while (( retries > 0 )); do
         read -rp "${BLUE}${BOLD}[INPUT REQUIRED] Enter your TMDB API key:${STOP_COLOR} " SELECTED_TMDB_API_KEY
-        if [ ! -z "$SELECTED_TMDB_API_KEY" ]; then
+        retries=$((retries - 1))
+        if [[ "$SELECTED_TMDB_API_KEY" =~ ^[A-Za-z0-9._-]+$ ]]; then # chars that are safe in YAML and sed
             break
-        else
-            echo -e "${RED}${BOLD}[ERROR] API Key can't be empty. You have $retries attempts left.${STOP_COLOR}"
-            retries=$((retries - 1))
-            if (( retries == 0 )); then
-                echo -e "\n${RED}${BOLD}[ERROR] Maximum attempts reached. Terminating the script ... Bye!${STOP_COLOR}"
-                exit 1
-            fi
+        fi
+        echo -e "${RED}${BOLD}[ERROR] API key must be non-empty and alphanumeric. You have $retries attempts left.${STOP_COLOR}"
+        if (( retries == 0 )); then
+            echo
+            die "Maximum attempts reached."
         fi
     done
 }
 
 install_kometa() {
     if [ -d "${CONFIG_DIR}" ]; then
-        echo -e "${YELLOW}${BOLD}[INFO] ${APPNAME} config already present at -${STOP_COLOR} '${CONFIG_DIR}'"
-        echo -e "${RED}${BOLD}[ERROR] Terminating the script ... Bye!"
-        exit 1
+        info "${APPNAME} config already present at -" "${CONFIG_DIR}"
+        die "Run this script again and choose [2] to uninstall first."
     elif [ ! -f "$PLEX_PREFS_FILE" ]; then
         echo -e "${YELLOW}${BOLD}[INFO] Plex Preferences.xml file NOT found; ensure you have installed Plex Media Server before running this script.${STOP_COLOR}"
-        echo -e "${RED}${BOLD}[ERROR] Terminating the script ... Bye!"
-        exit 1
+        die "Plex Media Server is required."
     fi
+
+    check_python_version # before the clone, so a bad Python fails fast
 
     echo -e "${MAGENTA}${BOLD}[STAGE-1] Download ${APPNAME} config and configure${STOP_COLOR}"
     mkdir -p "${CONFIG_DIR}"
-    git clone https://github.com/Kometa-Team/Kometa.git "${CONFIG_DIR}" >/dev/null 2>&1
+    if ! git clone https://github.com/Kometa-Team/Kometa.git "${CONFIG_DIR}" >/dev/null 2>&1; then
+        rm -rf "${CONFIG_DIR}" # leave no half-clone behind to block the retry
+        die "Failed to clone ${APPNAME} from GitHub."
+    fi
 
     if [[ -f "${CONFIG_TEMPLATE_FILE}" ]]; then
         mv "${CONFIG_TEMPLATE_FILE}" "${CONFIG_FILE}"
-        echo -e "${YELLOW}${BOLD}[INFO] Renamed config template to:${STOP_COLOR} '${CONFIG_FILE}'"
+        info "Renamed config template to:" "${CONFIG_FILE}"
     else
-        echo -e "${RED}${BOLD}[ERROR] Failed to download ${APPNAME} config template at:${STOP_COLOR} '${CONFIG_TEMPLATE_FILE}'"
-        exit 1
+        die "Failed to download ${APPNAME} config template at: '${CONFIG_TEMPLATE_FILE}'."
     fi
 
-    check_python_version
     get_plex_direct_url
-
-    PLEX_TOKEN=$(grep -oP 'PlexOnlineToken="\K[^"]+' "$PLEX_PREFS_FILE")
-    echo -e "\n${YELLOW}${BOLD}[INFO] Plex Token:${STOP_COLOR} '${PLEX_TOKEN}'"
-
+    get_plex_token
     get_tmdb_api_key
 
     INSTALLED_PYTHON_PATH=$(command -v python)
@@ -129,40 +147,53 @@ EOF
 
     echo -e "\n${YELLOW}${BOLD}[INFO] ${APPNAME} config file created at:${STOP_COLOR} '$CONFIG_FILE'"
 
-    (cd ${CONFIG_DIR} && pip install -r requirements.txt) >/dev/null 2>&1
+    if ! (cd "${CONFIG_DIR}" && pip install -r requirements.txt) >/dev/null 2>&1; then
+        die "'pip install -r requirements.txt' failed; ${APPNAME} cannot start without its dependencies."
+    fi
 
     echo -e "${MAGENTA}${BOLD}[STAGE-2] Create systemd for ${APPNAME}${STOP_COLOR}"
-    local service_file="$HOME/.config/systemd/user/kometa.service"
+    mkdir -p "$(dirname "${SERVICE_FILE}")"
 
-    cat <<EOF >"$service_file"
+    cat <<EOF >"$SERVICE_FILE"
 [Unit]
-Description=Kometa
-After=multi-user.target
+Description=${APPNAME}
+After=network-online.target
 
 [Service]
-Type=simple
+Type=exec
 Restart=always
 RestartSec=3
-ExecStart=${INSTALLED_PYTHON_PATH} %h/scripts/${APPNAME}/main.py -c %h/scripts/${APPNAME}/config/config.yml
-StandardOutput=file:%h/scripts/${APPNAME}/kometa.log
+Environment=PYTHONUNBUFFERED=1
+ExecStart=${INSTALLED_PYTHON_PATH} %h/scripts/${APPNAME_LC}/kometa.py -c %h/scripts/${APPNAME_LC}/config/config.yml
+StandardOutput=append:%h/scripts/${APPNAME_LC}/${APPNAME_LC}.log
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
 
-    systemctl --user enable kometa.service >/dev/null 2>&1
-    systemctl --user start kometa.service
+    systemctl --user daemon-reload
+    systemctl --user enable "${APPNAME_LC}.service" >/dev/null 2>&1
+    systemctl --user start "${APPNAME_LC}.service"
+    info "Created systemd file for ${APPNAME}:" "${SERVICE_FILE}"
 
-    echo -e "${YELLOW}[INFO] Created systemd file for ${APPNAME}:${STOP_COLOR} '${service_file}'"
-    echo -e "\n${GREEN}${BOLD}[SUCCESS] ${APPNAME} installation completed! Check the logs at:${STOP_COLOR} '${HOME}/scripts/${APPNAME}/kometa.log'"
+    # a dead unit used to still print [SUCCESS]; verify before claiming it worked
+    if ! systemctl --user is-active --quiet "${APPNAME_LC}.service"; then
+        echo -e "${RED}${BOLD}[ERROR] ${APPNAME} service failed to start:${STOP_COLOR}"
+        systemctl --user status "${APPNAME_LC}.service" --no-pager -l 2>&1 | tail -n 10
+        die "${APPNAME} was installed but is not running."
+    fi
+
+    echo -e "\n${GREEN}${BOLD}[SUCCESS] ${APPNAME} installation completed! Check the logs at:${STOP_COLOR} '${LOG_FILE}'"
 }
 
 uninstall_kometa() {
-    systemctl --user stop kometa.service
-    systemctl --user disable kometa.service >/dev/null 2>&1
+    systemctl --user stop "${APPNAME_LC}.service" 2>/dev/null
+    systemctl --user disable "${APPNAME_LC}.service" >/dev/null 2>&1
 
-    SERVICE_FILE="$HOME/.config/systemd/user/kometa.service"
     rm -f "${SERVICE_FILE}"
+    # pre-fix installs enabled into multi-user.target.wants, which disable no longer sees
+    rm -f "${HOME}/.config/systemd/user/multi-user.target.wants/${APPNAME_LC}.service" \
+          "${HOME}/.config/systemd/user/default.target.wants/${APPNAME_LC}.service"
     rm -rf "${CONFIG_DIR}"
 
     systemctl --user daemon-reload
@@ -176,14 +207,15 @@ uninstall_kometa() {
 
 update_TMDB_API_key() {
     if [ ! -f "$CONFIG_FILE" ]; then
-        echo -e "${RED}${BOLD}[ERROR] ${APPNAME} config file can't be found. Terminating the script ... Bye!"
-        exit 1
+        die "${APPNAME} config file can't be found."
     fi
 
     get_tmdb_api_key
 
-    sed -i "s/apikey: \".*\"/apikey: \"${SELECTED_TMDB_API_KEY}\"/" "$CONFIG_FILE"
+    # scoped to the tmdb block so omdb/mdblist apikeys are left alone
+    sed -i "/^tmdb:/,/^[^[:space:]#]/ s|^\([[:space:]]*apikey:\).*|\1 \"${SELECTED_TMDB_API_KEY}\"|" "$CONFIG_FILE"
     echo -e "${GREEN}[INFO] TMDB API key has been updated in $CONFIG_FILE.${STOP_COLOR}"
+    echo -e "${YELLOW}${BOLD}[INFO] Restart ${APPNAME} to apply:${STOP_COLOR} 'systemctl --user restart ${APPNAME_LC}.service'"
 }
 
 main_fn() {
@@ -206,8 +238,7 @@ main_fn() {
         update_TMDB_API_key
         ;;
     *)
-        echo -e "${RED}${BOLD}[ERROR] Invalid input provided. Terminating the script ... Bye!"
-        exit 1
+        die "Invalid input provided."
         ;;
     esac
 }
