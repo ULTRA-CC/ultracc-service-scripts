@@ -4,7 +4,7 @@ set -euo pipefail
 
 
 APPNAME="Autoscan"
-VERSION="2024-07-11"
+VERSION="2026-11-23"
 
 BOLD=$(tput bold)
 BLUE=$(tput setaf 4)
@@ -28,12 +28,12 @@ print_welcome_message() {
 
 
 download_latest_binary() {
-    LATEST_VERSION=$(curl -s https://api.github.com/repos/Cloudbox/autoscan/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    LATEST_VERSION=$(curl -s https://api.github.com/repos/saltyorg/autoscan/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
     mkdir -p ${TMPDIR_LOCATION}/bin
     cd ${TMPDIR_LOCATION}/bin
 
-    wget -qO "${TMPDIR_LOCATION}/bin/autoscan" https://github.com/Cloudbox/autoscan/releases/download/${LATEST_VERSION}/autoscan_${LATEST_VERSION}_linux_amd64 >/dev/null 2>&1
+    wget -qO "${TMPDIR_LOCATION}/bin/autoscan" https://github.com/saltyorg/autoscan/releases/download/${LATEST_VERSION}/autoscan_${LATEST_VERSION}_linux_amd64 >/dev/null 2>&1
 
     chmod +x autoscan
     mv autoscan $HOME/bin/
@@ -45,7 +45,7 @@ create_config_file() {
     cat <<EOF | tee "${HOME}"/.apps/autoscan/config.yml >/dev/null
 ################################################################
 # This is just a basic config file. For more options, see:     #
-# https://github.com/Cloudbox/autoscan/blob/master/README.md   #
+# https://github.com/saltyorg/autoscan/blob/master/README.md   #
 ################################################################
 
 minimum-age: 2m30s
@@ -131,7 +131,7 @@ connect_with_media_server() {
             target='jellyfin'
             serverport="${jellyport}"
             url="http://172.17.0.1:${serverport}/jellyfin"
-            auth="${url}/System/Info?Api_key"
+            auth="${url}/System/Info?ApiKey"
             ;;
         *)
             echo -e "${RED}${BOLD}[ERROR] Invalid option. Please enter a number between 1 and 3.${STOP_COLOR}"
